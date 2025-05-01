@@ -3,6 +3,8 @@
 #include<iostream>
 #include<vector>
 #include <chrono>
+#include "cmd_console_tools.h"
+#include <assert.h>
 using namespace std;
 
 class Foo
@@ -14,25 +16,42 @@ class Foo
     thread producers;
     thread consumers;
     vector<int>buffer;
-    vector<int>output;
+    //vector<int>output;
     int fill;
-    int out;
+    int ptr_get;
+    int ptr_put;
+    //int out;
+
+    void printPut() {
+        cct_gotoxy(11 + ptr_put*5, 2);
+        ++ptr_put;
+        cout << "\033[31m" << "\ue29e" << ' ' << (buffer[fill] < 10 ? "0" : "") << buffer[fill] << "\033[0m" << ' ' << flush;
+    }
+
+    void printGet() {
+        cct_gotoxy(11 + ptr_get * 5, 3);
+        ++ptr_get;
+        cout << "\033[33m" << "\ue711" << ' ' << (buffer[fill] < 10 ? "0" : "") << buffer[fill] << "\033[0m" << ' ' << flush;
+    }
 
     void put(){
         buffer[fill] = fill+1;
-        //this_thread::sleep_for(chrono::milliseconds(50));
-        //cout << buffer[fill] << ' '<<flush;
-        output[out++] = buffer[fill];
+        this_thread::sleep_for(chrono::milliseconds(500));
+        cct_gotoxy(11 + fill * 5, 1);
+        cout << "\033[31m" << "\ue29e" << ' ' << (buffer[fill] < 10 ? "0" : "") << buffer[fill] << "\033[0m" << ' ' << flush;
+        printPut();
+        //output[out++] = buffer[fill];
         fill = (fill + 1) % 20;
     }
 
 
     void get() {
-        int ptr = fill - 1 < 0 ? 19 : fill - 1;
-        //this_thread::sleep_for(chrono::milliseconds(50));
-        //cout << "\033[31m" << buffer[ptr] << "\033[0m"<<' '<<flush;
-        output[out++] = -buffer[ptr];
-        fill = ptr;
+        fill = fill - 1 < 0 ? 19 : fill - 1;
+        this_thread::sleep_for(chrono::milliseconds(500));
+        cct_gotoxy(11 + fill * 5, 1);
+        cout << "____ ";
+        printGet();
+        //output[out++] = -buffer[fill];
     }
 
 public:
@@ -63,10 +82,16 @@ public:
         }
     }
 
-    Foo(int p, int c) :p(p), c(c),empty(20),full(0),lock(1),buffer(20,0),fill(0),output(p+c,0),out(0){
-        if (p < c) {
-            throw std::invalid_argument("Foo construction fail! p should not be smaller than c!");
+    Foo(int p, int c) :p(p), c(c),empty(20),full(0),lock(1),buffer(20,0),fill(0),ptr_get(0),ptr_put(0){
+       
+        assert(p > c && p - c<=20);
+        cout << "  buffer: ";
+        for (int i = 0; i < 20; ++i) {
+            cout << "____ " ;
         }
+        cout<< " \n";
+        cout << "producer: \n";
+        cout << "consumer: \n";
         producers = thread(&Foo::producer, this, p);
         consumers = thread(&Foo::consumer, this, c);
     };
@@ -74,22 +99,7 @@ public:
     ~Foo() {
         producers.join();
         consumers.join();
-        cout << '\n';
-        for (auto& elem : output) {
-            this_thread::sleep_for(chrono::milliseconds(100));
-            if (elem > 0) {
-                cout << "\033[31m" << "\ue29e"<<' '<<(elem<10?"0":"")<<elem << "\033[0m" << ' ' << flush;
-            }
-            else {
-                cout << "\b\b\b\b\b";
-                cout << "     ";
-                cout << "\b\b\b\b\b";
-                cout << "\033[B";
-                cout << "\033[33m" << "\ue711" << ' ' << (-elem < 10 ? "0" : "") << -elem << "\033[0m" << ' ' << flush;
-                cout << "\b\b\b\b\b";
-                cout << "\033[A";
-            }
-        }
+       
         cout << "\033[B";
         cout << "\033[B";
         cout << "\033[B";
@@ -99,11 +109,9 @@ public:
 int main() {
     int p,c;
     cout<<"Please input the number of producers and consumers:";
+    //cout << '\n';
     cin >> p >> c;
-    try {
-        Foo foo(p, c);
-    }
-    catch (const std::exception& e) {
-        cerr << e.what() << endl;
-    }
+    
+    Foo foo(p, c);
+   
 }
