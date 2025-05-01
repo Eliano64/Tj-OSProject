@@ -41,7 +41,6 @@ play.cpp
 
 x64/
 .vs/
-.gitignore
-P-C
+
 
 *.docx
