@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel='icon' href='https://www.tongji.edu.cn/images/badge.png'/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TJOS-hw2</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h2 {
+      margin: 30px 0 10px;
+      color: #333;
+    }
+    .form {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    .form label {
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+      color: #555;
+    }
+    .form input, .form select {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .form button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+    .form button:hover {
+      background-color: #45a049;
+    }
+    .container {
+      display: flex;
+      width: 90%;
+      max-width: 1200px;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .panel {
+      flex: 1;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 20px;
+      min-height: 300px;
+    }
+    .memory-block {
+      border-radius: 8px;
+      margin: 6px 0;
+      padding: 10px;
+      font-size: 14px;
+      box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+    }
+    .free {
+      background-color: #dff0d8;
+      color: #2e7d32;
+    }
+    .occupied {
+      background-color: #f8d7da;
+      color: #c62828;
+    }
+    h3, h4 {
+      color: #444;
+      margin-bottom: 12px;
+    }
+    .job-list div {
+      background-color: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 8px 12px;
+      margin: 4px 0;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h2>动态分区分配方式模拟（Best Fit & First Fit）</h2>
+  <div class="form">
+    <label>作业ID:
+      <input type="number" id="jobId" min="0">
+    </label>
+    <label>内存大小:
+      <input type="number" id="memorySize" min="1">
+    </label>
+    <label>操作:
+      <select id="operation">
+        <option value="0">申请</option>
+        <option value="1">释放</option>
+      </select>
+    </label>
+    <button onclick="handleMemory()">提交</button>
+    <button style="background-color:#f44336" onclick="resetAll()">重置</button>
+  </div>
+
+  <div class="container">
+    <div class="panel">
+      <h3>作业内容</h3>
+      <div class="job-list" id="jobList"></div>
+    </div>
+    <div class="panel">
+      <h3>内存分区</h3>
+      <div>
+        <h4>First Fit</h4>
+        <div id="firstFit"></div>
+      </div>
+      <div style="margin-top: 20px">
+        <h4>Best Fit</h4>
+        <div id="bestFit"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class Block {
+      constructor(size, idle = true) {
+        this.size = size;
+        this.idle = idle;
+      }
+    }
+
+    let FF = [new Block(640)];
+    let BF = [new Block(640)];
+    let jobMapFF = new Map();
+    let jobMapBF = new Map();
+
+    function updateMemoryDisplay() {
+      const render = (blocks, containerId) => {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        blocks.forEach(block => {
+          const div = document.createElement('div');
+          div.className = `memory-block ${block.idle ? 'free' : 'occupied'}`;
+          div.textContent = `${block.size}K - ${block.idle ? '空闲' : '占用'}`;
+          container.appendChild(div);
+        });
+      };
+      render(FF, 'firstFit');
+      render(BF, 'bestFit');
+    }
+
+    function splitBlock(blocks, index, jobId, size, jobMap) {
+      const block = blocks[index];
+      if (block.size === size) {
+        block.idle = false;
+        jobMap.set(jobId, index);
+      } else {
+        blocks.splice(index, 1, new Block(size, false), new Block(block.size - size));
+        jobMap.set(jobId, index);
+      }
+    }
+
+    function mergeFree(blocks) {
+      for (let i = 0; i < blocks.length - 1;) {
+        if (blocks[i].idle && blocks[i + 1].idle) {
+          blocks[i].size += blocks[i + 1].size;
+          blocks.splice(i + 1, 1);
+        } else {
+          i++;
+        }
+      }
+    }
+
+    function applyFF(jobId, size) {
+      for (let i = 0; i < FF.length; i++) {
+        if (FF[i].idle && FF[i].size >= size) {
+          splitBlock(FF, i, jobId, size, jobMapFF);
+          return;
+        }
+      }
+      alert('FF 分配失败：无足够内存');
+    }
+
+    function applyBF(jobId, size) {
+      let best = -1;
+      for (let i = 0; i < BF.length; i++) {
+        if (BF[i].idle && BF[i].size >= size) {
+          if (best === -1 || BF[i].size < BF[best].size) best = i;
+        }
+      }
+      if (best !== -1) {
+        splitBlock(BF, best, jobId, size, jobMapBF);
+      } else {
+        alert('BF 分配失败：无足够内存');
+      }
+    }
+
+    function releaseFF(jobId) {
+      if (jobMapFF.has(jobId)) {
+        const index = jobMapFF.get(jobId);
+        FF[index].idle = true;
+        jobMapFF.delete(jobId);
+        mergeFree(FF);
+      }
+    }
+
+    function releaseBF(jobId) {
+      if (jobMapBF.has(jobId)) {
+        const index = jobMapBF.get(jobId);
+        BF[index].idle = true;
+        jobMapBF.delete(jobId);
+        mergeFree(BF);
+      }
+    }
+
+    function handleMemory() {
+      const id = parseInt(document.getElementById('jobId').value);
+      const size = parseInt(document.getElementById('memorySize').value);
+      const type = parseInt(document.getElementById('operation').value);
+
+      if (isNaN(id) || id < 0 || (type === 0 && (isNaN(size) || size <= 0))) {
+        alert('请输入有效的作业ID和内存大小');
+        return;
+      }
+
+      if (type === 0) {
+        applyFF(id, size);
+        applyBF(id, size);
+        const jobList = document.getElementById('jobList');
+        const entry = document.createElement('div');
+        entry.textContent = `作业 ${id}：申请 ${size}K`;
+        jobList.appendChild(entry);
+      } else {
+        releaseFF(id);
+        releaseBF(id);
+        const jobList = document.getElementById('jobList');
+        const entry = document.createElement('div');
+        entry.textContent = `作业 ${id}：释放内存`;
+        jobList.appendChild(entry);
+      }
+
+      updateMemoryDisplay();
+    }
+
+    function resetAll() {
+      FF = [new Block(640)];
+      BF = [new Block(640)];
+      jobMapFF.clear();
+      jobMapBF.clear();
+      document.getElementById('jobList').innerHTML = '';
+      updateMemoryDisplay();
+    }
+
+    updateMemoryDisplay();
+  </script>
+</body>
+</html>
