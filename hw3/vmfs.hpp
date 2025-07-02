@@ -1,4 +1,5 @@
-# pragma once 
+#ifndef VMFS_HPP
+#define VMFS_HPP
 #include <bits/stdc++.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -468,3 +469,5 @@ size_t findRmBlock(string &file_path, vector<pair<size_t, string>> cur, uint8_t 
     free(parentDir);
     return rmBlock;
 }
+
+#endif //VMFS_HPP
